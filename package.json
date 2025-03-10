@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "server": "node app.js"
+    "server": "node app.js",
+    "dev": "nodemon app.js"
   },
   "author": "\"Ivan Flores Flores\"",
   "license": "ISC",
@@ -25,5 +26,8 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.16",
     "twilio": "^5.3.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
