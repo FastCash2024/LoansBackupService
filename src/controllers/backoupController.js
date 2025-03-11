@@ -21,7 +21,10 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
     });
 
     if (credits.length === 0) {
-      return res.status(404).json({ message: `No se encontraron registros para la fecha ${fecha}.` });
+      return res.status(404).json({
+        message: 'No se encontraron registros para guardar.',
+        status: false
+      });
     }
 
     const usuariosGuardados = [];
@@ -53,13 +56,15 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
 
     if (registrosGuardados === 0) {
       return res.status(404).json({
-        message: `No se encontraron registros para guardar en la fecha ${fecha}.`
+        message: 'No se encontraron registros para guardar.',
+        status:false
       });
     }
 
     res.status(201).json({
-      message: `Backup realizado con éxito en la fecha ${fecha}.`,
-      registrosGuardados
+      message: 'Backup realizado con éxito.',
+      registrosGuardados,
+      status:true
     });
 
   } catch (error) {
