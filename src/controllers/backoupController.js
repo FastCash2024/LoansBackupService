@@ -7,40 +7,62 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
 
     if (!fecha) {
       const hoy = new Date();
-      fecha = hoy.toISOString().split("T")[0];
+      hoy.setHours(0, 0, 0, 0); 
+      fecha = hoy.toISOString().split("T")[0]; 
     }
 
-    const inicioDelDia = new Date(`${fecha}T00:00:00.000Z`);
-    const finDelDia = new Date(`${fecha}T23:59:59.999Z`);
+    const [year, month, day] = fecha.split("-").map(Number);
+
+    const inicioDelDia = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)); 
+    const finDelDia = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)); 
 
     const credits = await VerificationCollection.find({
-      updatedAt: { $gte: inicioDelDia, $lte: finDelDia },
       estadoDeCredito: { $ne: "Pagado" }
     });
 
     if (credits.length === 0) {
-      return res.status(404).json({ message: 'No se encontraron registros para esta fecha' });
+      return res.status(404).json({ message: `No se encontraron registros para la fecha ${fecha}.` });
     }
 
-    let usuarios = credits;
+    const usuariosGuardados = [];
+    let registrosGuardados = 0;
 
-    if (!Array.isArray(usuarios)) {
-      usuarios = [usuarios];
+    for (const credit of credits) {
+      const { numeroDePrestamo, updatedAt } = credit;
+
+      const updatedAtDate = new Date(updatedAt);
+      updatedAtDate.setUTCHours(0, 0, 0, 0); 
+
+      if (updatedAtDate >= inicioDelDia && updatedAtDate <= finDelDia) {
+
+        // Verificar si ya existe el numeroDePrestamo en la colección de backups
+        const backupExistente = await VerificationCollectionBackup.findOne({ numeroDePrestamo });
+
+        // Si no existe, crear el backup
+        if (!backupExistente) {
+          const backup = await VerificationCollectionBackup.create(credit.toObject());
+          usuariosGuardados.push(backup);
+          registrosGuardados++;
+        } else {
+          console.log(`El número de préstamo ${numeroDePrestamo} ya existe en el backup.`);
+        }
+      } else {
+        console.log(`Registro con número de préstamo ${numeroDePrestamo} no está en el rango de fechas.`);
+      }
     }
 
-    const usuariosGuardados = await VerificationCollectionBackup.insertMany(usuarios);
+    if (registrosGuardados === 0) {
+      return res.status(404).json({
+        message: `No se encontraron registros para guardar en la fecha ${fecha}.`
+      });
+    }
 
     res.status(201).json({
-      message: "Usuarios registrados con éxito y backup realizado",
-      usuarios: usuariosGuardados,
-      credits
+      message: `Backup realizado con éxito en la fecha ${fecha}.`,
+      registrosGuardados
     });
-    
+
   } catch (error) {
-    if (error.code === 11000) {
-      res.status(400).json({ error: 'El numeroDePrestamo ya existe' });
-    } else {
-      res.status(500).json({ error: 'Error al guardar en el backup', details: error.message });
-    }
+    res.status(500).json({ error: 'Error al guardar en el backup', details: error.message });
   }
 };

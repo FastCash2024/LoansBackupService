@@ -119,6 +119,9 @@ const verificationCollectionBackupSchema = new mongoose.Schema({
         unique: true, 
         required: true 
     },
+    createdAt: Date,  // Definiendo los campos manualmente
+    updatedAt: Date,
+    
     idDeSubFactura: String,
     estadoDeCredito: String,
     nombreDelCliente: String,
@@ -176,7 +179,6 @@ const verificationCollectionBackupSchema = new mongoose.Schema({
     stpOrdenDeDispersion: Object,
     fechaBackoup: String
   }, {
-    timestamps: true,
     collection: 'backupRecoleccionYValidacionDeDatos'
   });
   
