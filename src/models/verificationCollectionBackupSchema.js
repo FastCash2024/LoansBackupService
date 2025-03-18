@@ -161,7 +161,7 @@ const verificationCollectionBackupSchema = new mongoose.Schema({
     // Usuario de auditoría asignado
     apodoDeUsuarioDeAuditoria: String,
     cuentaAuditor: String,
-  
+    
     // Asesor actual asignado
     asesor: String,
     emailAsesor: String,
@@ -177,7 +177,8 @@ const verificationCollectionBackupSchema = new mongoose.Schema({
     historialDeAsesores: [HistorialAsesorSchema],
     cuentaClaveParaCobro: String,
     stpOrdenDeDispersion: Object,
-    fechaBackoup: String
+    fechaBackoup: String,
+    subId: String
   }, {
     collection: 'backupRecoleccionYValidacionDeDatos'
   });

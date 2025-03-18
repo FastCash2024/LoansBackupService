@@ -1,23 +1,58 @@
+import moment from "moment-timezone";
 import VerificationCollection from '../models/VerificationCollection.js';
 import { VerificationCollectionBackup } from '../models/verificationCollectionBackupSchema.js';
 
 export const getRecoleccionesYGuardarBackup = async (req, res) => {
   try {
-    let { fecha } = req.query;
+    let { fecha, tipo } = req.query;
 
-    if (!fecha) {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0); 
-      fecha = hoy.toISOString().split("T")[0]; 
+    console.log("Tipo: ", tipo);
+
+    if (!tipo || (tipo !== 'cobro' && tipo !== 'verificacion')) {
+      return res.status(400).json({
+        message: 'Debe especificar el tipo de backup: "cobro" o "verificacion".',
+        status: false
+      });
     }
 
-    const [year, month, day] = fecha.split("-").map(Number);
+    if (!fecha) {
+      fecha = new Date().toISOString().split("T")[0]; // Formato YYYY-MM-DD
+    }
 
-    const inicioDelDia = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)); 
-    const finDelDia = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)); 
+    console.log("Fecha: ", fecha);
+
+    const [year, month, day] = fecha.split("-").map(Number);
+    const inicioDelDia = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const finDelDia = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+
+    let filtroFecha = {};
+    let filtroEstado = {};
+
+    if (tipo === 'cobro') {
+      filtroFecha = {
+        $expr: {
+          $and: [
+            { $gte: [{ $dateFromString: { dateString: "$fechaDeTramitacionDeCobro" } }, inicioDelDia] },
+            { $lte: [{ $dateFromString: { dateString: "$fechaDeTramitacionDeCobro" } }, finDelDia] }
+          ]
+        }
+      };
+      filtroEstado = { estadoDeCredito: { $in: ["Pagado", "Pagado con Extensión", "Dispersado"] } };
+    } else if (tipo === 'verificacion') {
+      filtroFecha = {
+        $expr: {
+          $and: [
+            { $gte: [{ $dateFromString: { dateString: "$fechaDeTramitacionDelCaso" } }, inicioDelDia] },
+            { $lte: [{ $dateFromString: { dateString: "$fechaDeTramitacionDelCaso" } }, finDelDia] }
+          ]
+        }
+      };
+      filtroEstado = { estadoDeCredito: { $in: ["Pendiente", "Dispersado", "Aprobado", "Reprobado"] } };
+    }
 
     const credits = await VerificationCollection.find({
-      estadoDeCredito: { $ne: "Pagado" }
+      ...filtroFecha,
+      ...filtroEstado
     });
 
     if (credits.length === 0) {
@@ -27,44 +62,39 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
       });
     }
 
-    const usuariosGuardados = [];
     let registrosGuardados = 0;
+    let registrosActualizados = 0;
+
+    console.log("Créditos encontrados:", credits);
 
     for (const credit of credits) {
-      const { numeroDePrestamo, updatedAt } = credit;
+      const { numeroDePrestamo, _id } = credit;
 
-      const updatedAtDate = new Date(updatedAt);
-      updatedAtDate.setUTCHours(0, 0, 0, 0); 
+      const backupExistente = await VerificationCollectionBackup.findOne({ numeroDePrestamo });
 
-      if (updatedAtDate >= inicioDelDia && updatedAtDate <= finDelDia) {
+      const backupData = {
+        ...credit.toObject(),
+        subId: _id,
+        fechaBackoup: moment().tz("America/Mexico_City").format(),
+      };
 
-        // Verificar si ya existe el numeroDePrestamo en la colección de backups
-        const backupExistente = await VerificationCollectionBackup.findOne({ numeroDePrestamo });
-
-        // Si no existe, crear el backup
-        if (!backupExistente) {
-          const backup = await VerificationCollectionBackup.create(credit.toObject());
-          usuariosGuardados.push(backup);
-          registrosGuardados++;
-        } else {
-          console.log(`El número de préstamo ${numeroDePrestamo} ya existe en el backup.`);
-        }
+      if (!backupExistente) {
+        await VerificationCollectionBackup.create(backupData);
+        registrosGuardados++;
       } else {
-        console.log(`Registro con número de préstamo ${numeroDePrestamo} no está en el rango de fechas.`);
+        await VerificationCollectionBackup.updateOne(
+          { numeroDePrestamo },
+          { $set: backupData }
+        );
+        registrosActualizados++;
       }
-    }
-
-    if (registrosGuardados === 0) {
-      return res.status(404).json({
-        message: 'No se encontraron registros para guardar.',
-        status:false
-      });
     }
 
     res.status(201).json({
       message: 'Backup realizado con éxito.',
       registrosGuardados,
-      status:true
+      registrosActualizados,
+      status: true
     });
 
   } catch (error) {
