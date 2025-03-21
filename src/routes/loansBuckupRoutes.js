@@ -1,8 +1,9 @@
 import express from "express";
-import { getRecoleccionesYGuardarBackup } from "../controllers/backoupController.js";
+import { getRecoleccionesYGuardarBackup, getVerificationBackups } from "../controllers/backoupController.js";
 
 const router = express.Router();
 
 router.get('/getTodos', getRecoleccionesYGuardarBackup);
+router.get('/getCasos', getVerificationBackups);
 
 export default router;

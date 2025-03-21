@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 
 import loansBuckupRoutes from './src/routes/loansBuckupRoutes.js';
+import authBackupRoutes from './src/routes/authBackupRoutes.js';
 
 import { errorHandler } from './src/middleware/errorHandler.js';
 
@@ -28,6 +29,7 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Rutas
 app.use('/api/loansBuckup', loansBuckupRoutes); // CasesDB ---> manejador de casos
+app.use('/api/authBackup', authBackupRoutes); // CasesDB ---> manejador de casos
 
 // const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

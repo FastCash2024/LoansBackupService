@@ -101,3 +101,28 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
     res.status(500).json({ error: 'Error al guardar en el backup', details: error.message });
   }
 };
+
+export const getVerificationBackups = async (req, res) => {
+  try {
+
+    const { page = 1, limit = 10 } = req.query;
+
+    const limitInt = parseInt(limit, 10);
+    const pageInt = parseInt(page, 10);
+    const totalDocs = await VerificationCollection.countDocuments();
+    const data = await VerificationCollectionBackup.find()
+      .sort({ _id: -1 })
+      .skip((pageInt - 1) * limitInt)
+      .limit(limitInt);
+
+    const totalPages = Math.ceil(totalDocs / limitInt)
+    res.status(200).json({
+      data,
+      currentPage: pageInt,
+      totalPages,
+      totalDocs
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener casos.', details: error.message });
+  }
+}
