@@ -1,6 +1,7 @@
 import moment from "moment-timezone";
 import VerificationCollection from '../models/VerificationCollection.js';
 import { VerificationCollectionBackup } from '../models/verificationCollectionBackupSchema.js';
+import GestionDeAccesosBackupCollection from "../models/GestionDeAccesosBackupCollection.js";
 
 export const getRecoleccionesYGuardarBackup = async (req, res) => {
   try {
@@ -104,25 +105,67 @@ export const getRecoleccionesYGuardarBackup = async (req, res) => {
 
 export const getVerificationBackups = async (req, res) => {
   try {
+    const { email, page = 1, limit = 10 } = req.query;
 
-    const { page = 1, limit = 10 } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: "El parámetro email es requerido" });
+    }
 
     const limitInt = parseInt(limit, 10);
     const pageInt = parseInt(page, 10);
-    const totalDocs = await VerificationCollection.countDocuments();
-    const data = await VerificationCollectionBackup.find()
-      .sort({ _id: -1 })
-      .skip((pageInt - 1) * limitInt)
-      .limit(limitInt);
 
-    const totalPages = Math.ceil(totalDocs / limitInt)
+    // Paso 1: Obtener los usuarios que han interactuado con cuentaPersonal
+    const usuarios = await GestionDeAccesosBackupCollection.find({ emailPersonal: email, tipoDeGrupo: "Asesor de Cobranza" });
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ message: "No se encontraron usuarios con este email" });
+    }
+
+    let resultados = [];
+
+    for (const usuario of usuarios) {
+      console.log("usuarios: ", usuarios);
+      
+      const { emailPersonal, fechaBackup, cuenta } = usuario;
+
+      const fechaBackupStr = fechaBackup.split("T")[0];
+
+      console.log(fechaBackupStr);
+      
+
+      const cantidadCasosPagados = await VerificationCollectionBackup.countDocuments({
+        cuentaCobrador: cuenta,
+        fechaBackoup: { $regex: `^${fechaBackupStr}` },
+        estadoDeCredito: "Pagado"
+      });
+
+      const cantidadDeCasosAsignados = await VerificationCollectionBackup.countDocuments({
+        cuentaCobrador: cuenta,
+        fechaBackoup: { $regex: `^${fechaBackupStr}` }
+    });
+
+      resultados.push({
+        emailPersonal,
+        cuenta,
+        fechaBackup,
+        cantidadCasosPagados,
+        cantidadDeCasosAsignados
+      });
+    }
+
+    const totalDocs = resultados.length;
+    const totalPages = Math.ceil(totalDocs / limitInt);
+    const paginatedData = resultados.slice((pageInt - 1) * limitInt, pageInt * limitInt);
+
     res.status(200).json({
-      data,
+      data: paginatedData,
       currentPage: pageInt,
       totalPages,
       totalDocs
-    })
+    });
+
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener casos.', details: error.message });
+    res.status(500).json({ message: 'Error al obtener los backups de verificación.', details: error.message });
   }
-}
+};
+
