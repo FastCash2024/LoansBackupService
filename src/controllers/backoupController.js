@@ -114,8 +114,10 @@ export const getVerificationBackups = async (req, res) => {
     const limitInt = parseInt(limit, 10);
     const pageInt = parseInt(page, 10);
 
-    // Paso 1: Obtener los usuarios que han interactuado con cuentaPersonal
-    const usuarios = await GestionDeAccesosBackupCollection.find({ emailPersonal: email, tipoDeGrupo: "Asesor de Cobranza" });
+    const usuarios = await GestionDeAccesosBackupCollection.find({
+      emailPersonal: email,
+      tipoDeGrupo: "Asesor de Cobranza"
+    });
 
     if (usuarios.length === 0) {
       return res.status(404).json({ message: "No se encontraron usuarios con este email" });
@@ -124,25 +126,27 @@ export const getVerificationBackups = async (req, res) => {
     let resultados = [];
 
     for (const usuario of usuarios) {
-      console.log("usuarios: ", usuarios);
-      
       const { emailPersonal, fechaBackup, cuenta } = usuario;
-
       const fechaBackupStr = fechaBackup.split("T")[0];
 
-      console.log(fechaBackupStr);
-      
-
-      const cantidadCasosPagados = await VerificationCollectionBackup.countDocuments({
+      const casosPagados = await VerificationCollectionBackup.find({
         cuentaCobrador: cuenta,
         fechaBackoup: { $regex: `^${fechaBackupStr}` },
         estadoDeCredito: "Pagado"
       });
 
+      const casosPagadosValidos = casosPagados.filter(caso => {
+        const fechaDeReembolso = new Date(caso.fechaDeReembolso);
+        const hora = fechaDeReembolso.getHours();
+        return hora >= 7 && hora < 24;
+      });
+
+      const cantidadCasosPagados = casosPagadosValidos.length;
+
       const cantidadDeCasosAsignados = await VerificationCollectionBackup.countDocuments({
         cuentaCobrador: cuenta,
         fechaBackoup: { $regex: `^${fechaBackupStr}` }
-    });
+      });
 
       resultados.push({
         emailPersonal,
@@ -169,3 +173,72 @@ export const getVerificationBackups = async (req, res) => {
   }
 };
 
+
+export const getForVerificationBackups = async (req, res) => {
+  try {
+    const { email, page = 1, limit = 10 } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ message: "El parámetro email es requerido" });
+    }
+
+    const limitInt = parseInt(limit, 10);
+    const pageInt = parseInt(page, 10);
+
+    const usuarios = await GestionDeAccesosBackupCollection.find({
+      emailPersonal: email,
+      tipoDeGrupo: "Asesor de Verificación"
+    });
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ message: "No se encontraron usuarios con este email" });
+    }
+
+    let resultados = [];
+
+    for (const usuario of usuarios) {
+      const { emailPersonal, fechaBackup, cuenta } = usuario;
+      const fechaBackupStr = fechaBackup.split("T")[0];
+
+      const casosDispersados = await VerificationCollectionBackup.find({
+        cuentaVerificador: cuenta,
+        fechaBackoup: { $regex: `^${fechaBackupStr}` },
+        estadoDeCredito: "Dispersado"
+      });
+
+      const casosDispersadosValidos = casosDispersados.filter(caso => {
+        const fechaDeDispersion = new Date(caso.fechaDeDispersion);
+        const hora = fechaDeDispersion.getHours();
+        return hora >= 7 && hora < 24;
+      });
+
+      const cantidadCasosDispersados = casosDispersadosValidos.length;
+      const cantidadDeCasosAsignados = await VerificationCollectionBackup.countDocuments({
+        cuentaVerificador: cuenta,
+        fechaBackoup: { $regex: `^${fechaBackupStr}` }
+      });
+
+      resultados.push({
+        emailPersonal,
+        cuenta,
+        fechaBackup,
+        cantidadCasosDispersados,
+        cantidadDeCasosAsignados
+      });
+    }
+
+    const totalDocs = resultados.length;
+    const totalPages = Math.ceil(totalDocs / limitInt);
+    const paginatedData = resultados.slice((pageInt - 1) * limitInt, pageInt * limitInt);
+
+    res.status(200).json({
+      data: paginatedData,
+      currentPage: pageInt,
+      totalPages,
+      totalDocs
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los backups de verificación.', details: error.message });
+  }
+};
