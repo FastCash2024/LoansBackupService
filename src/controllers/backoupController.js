@@ -1,4 +1,5 @@
 import moment from "moment-timezone";
+import cron from "node-cron";
 import VerificationCollection from '../models/VerificationCollection.js';
 import { VerificationCollectionBackup } from '../models/verificationCollectionBackupSchema.js';
 import GestionDeAccesosBackupCollection from "../models/GestionDeAccesosBackupCollection.js";
@@ -242,3 +243,14 @@ export const getForVerificationBackups = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener los backups de verificación.', details: error.message });
   }
 };
+
+cron.schedule("0 0 * * *", () => {
+  console.log("Ejecutando asignación de casos a la medianoche...");
+  getRecoleccionesYGuardarBackup();
+  getVerificationBackups();
+  getForVerificationBackups();
+}, {
+  timezone: "America/Mexico_City"
+});
+
+console.log("Tarea programada para ejecutarse a la medianoche (00:00) hora de México");

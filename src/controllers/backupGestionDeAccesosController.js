@@ -1,4 +1,5 @@
 import moment from "moment-timezone";
+import cron from "node-cron";
 import GestionDeAccesosBackupCollection from "../models/GestionDeAccesosBackupCollection.js";
 import userSchema from "../models/AuthCollection.js";
 
@@ -74,3 +75,13 @@ export const getCuentasYGuardarBackup = async (req, res) => {
     res.status(500).json({ error: "Error al guardar en el backup", details: error.message });
   }
 };
+
+
+cron.schedule("0 0 * * *", () => {
+  console.log("Ejecutando asignación de casos a la medianoche...");
+  getCuentasYGuardarBackup();
+}, {
+  timezone: "America/Mexico_City"
+});
+
+console.log("Tarea programada para ejecutarse a la medianoche (00:00) hora de México");
