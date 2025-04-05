@@ -3,20 +3,6 @@ import cron from "node-cron";
 import GestionDeAccesosBackupCollection from "../models/GestionDeAccesosBackupCollection.js";
 import userSchema from "../models/AuthCollection.js";
 
-// export const getGestionDeAccesos = async (req, res) => {
-//     try {
-//         const cuentas = await userSchema.find({
-//             tipoDeGrupo: { $in: ["Asesor de Cobranza", "Asesor de Verificación"] },
-//             emailPersonal: { $not: { $regex: "^No asignado", $options: "i" } }
-//         });
-
-//         res.json({ data: cuentas });
-//     } catch (error) {
-//         console.error("Error al obtener gestión de accesos:", error);
-//         res.status(500).json({ error: "Error interno del servidor." });
-//     }
-// };
-
 export const getCuentasYGuardarBackup = async (req, res) => {
   try {
     const cuentas = await userSchema.find({

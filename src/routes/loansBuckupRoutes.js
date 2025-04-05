@@ -3,8 +3,10 @@ import { getForVerificationBackups, getRecoleccionesYGuardarBackup, getVerificat
 
 const router = express.Router();
 
+// Casos de Recoleccion backup
 router.get('/getTodos', getRecoleccionesYGuardarBackup);
-router.get('/getCasos', getVerificationBackups);
+// Casos de Verificacion backup
+router.get('/getCasos', getVerificationBackups)
 router.get('/getCasosVerificador', getForVerificationBackups);
 
 export default router;
